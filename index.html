@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Anime Favoritku 🌟</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #121212;
+      color: white;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    #controls {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    #searchInput, #genreFilter {
+      padding: 8px;
+      font-size: 1em;
+      border-radius: 5px;
+      border: none;
+      margin: 0 8px;
+    }
+
+    #anime-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 24px;
+    }
+
+    .anime-card {
+      background-color: #1f1f1f;
+      border-radius: 10px;
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .anime-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .anime-card img {
+      width: 100%;
+      height: 280px;
+      object-fit: cover;
+    }
+
+    .anime-info {
+      padding: 12px;
+      flex-grow: 1;
+    }
+
+    .anime-title { font-size: 1em; font-weight: bold; margin-bottom: 6px; }
+    .anime-score { font-size: 0.9em; color: #b5b5b5; margin-bottom: 5px; }
+    .anime-genre { font-size: 0.85em; color: #8f8f8f; margin-bottom: 8px; }
+
+    .rating {
+      display: flex;
+      gap: 4px;
+    }
+
+    .star {
+      font-size: 1.2em;
+      cursor: pointer;
+      color: #555;
+      transition: color 0.2s;
+    }
+
+    .star.active {
+      color: gold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Anime List 🎬</h1>
+
+  <div id="controls">
+    <input type="text" id="searchInput" placeholder="Cari anime..." />
+    <select id="genreFilter">
+      <option value="">Semua Genre</option>
+    </select>
+  </div>
+
+  <div id="anime-container">Loading anime...</div>
+
+  <script>
+    let allAnime = [];
+
+    async function fetchAnime() {
+  try {
+    const res = await fetch('https://api.jikan.moe/v4/anime?limit=50&page=1');
+    const data = await res.json();
+
+    if (!data || !data.data) {
+      throw new Error("Data tidak ditemukan di response.");
+    }
+
+    allAnime = data.data;
+    populateGenres(allAnime);
+    renderAnime(allAnime);
+  } catch (err) {
+    document.getElementById('anime-container').innerText = '❌ Gagal memuat data anime.';
+    console.error("Error saat mengambil data:", err);
+  }
+}
+
+
+    function populateGenres(animes) {
+      const genreSet = new Set();
+      animes.forEach(anime => {
+        anime.genres.forEach(genre => genreSet.add(genre.name));
+      });
+
+      const genreFilter = document.getElementById('genreFilter');
+      Array.from(genreSet).sort().forEach(genre => {
+        const opt = document.createElement('option');
+        opt.value = genre;
+        opt.textContent = genre;
+        genreFilter.appendChild(opt);
+      });
+    }
+
+    function renderAnime(animes) {
+      const container = document.getElementById('anime-container');
+      container.innerHTML = '';
+
+      animes.forEach(anime => {
+        const genres = anime.genres.map(g => g.name).join(', ');
+        const animeId = anime.mal_id;
+        const savedRating = localStorage.getItem(`rating_${animeId}`) || 0;
+
+       const card = document.createElement('div');
+card.className = 'anime-card';
+card.style.cursor = 'pointer';
+card.onclick = () => {
+  window.location.href = `detail.html?id=${animeId}`;
+};
+
+card.innerHTML = `
+  <img src="${anime.images.jpg.image_url}" alt="${anime.title}">
+  <div class="anime-info">
+    <div class="anime-title">${anime.title}</div>
+    <div class="anime-score">Skor: ${anime.score ?? 'N/A'}</div>
+    <div class="anime-genre">${genres}</div>
+    <div class="rating" data-id="${animeId}">${createStars(animeId, savedRating)}</div>
+  </div>
+`;
+
+        container.appendChild(card);
+      });
+
+      enableRatingEvents();
+    }
+
+    function createStars(id, activeRating) {
+      let stars = '';
+      for (let i = 1; i <= 5; i++) {
+        stars += `<span class="star ${i <= activeRating ? 'active' : ''}" data-star="${i}" data-anime="${id}">&#9733;</span>`;
+      }
+      return stars;
+    }
+
+    function enableRatingEvents() {
+      const stars = document.querySelectorAll('.star');
+      stars.forEach(star => {
+        star.addEventListener('click', function () {
+          const animeId = this.getAttribute('data-anime');
+          const rating = parseInt(this.getAttribute('data-star'));
+          localStorage.setItem(`rating_${animeId}`, rating);
+
+          const ratingDiv = this.parentElement;
+          ratingDiv.innerHTML = createStars(animeId, rating);
+          enableRatingEvents();
+        });
+      });
+    }
+
+    function filterAnime() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const selectedGenre = document.getElementById('genreFilter').value;
+
+      const filtered = allAnime.filter(anime => {
+        const matchTitle = anime.title.toLowerCase().includes(search);
+        const matchGenre = selectedGenre === "" || anime.genres.some(g => g.name === selectedGenre);
+        return matchTitle && matchGenre;
+      });
+
+      renderAnime(filtered);
+    }
+
+    document.getElementById('searchInput').addEventListener('input', filterAnime);
+    document.getElementById('genreFilter').addEventListener('change', filterAnime);
+
+    fetchAnime();
+  </script>
+</body>
+</html>

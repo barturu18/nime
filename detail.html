@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Detail Anime</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #121212;
+      color: white;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+    }
+
+    .title {
+      font-size: 2em;
+      margin-bottom: 10px;
+    }
+
+    .image {
+      width: 100%;
+      max-height: 400px;
+      object-fit: contain;
+      margin-bottom: 20px;
+      border-radius: 10px;
+    }
+
+    .info {
+      margin-bottom: 10px;
+      color: #ccc;
+    }
+
+    .back {
+      display: inline-block;
+      margin-top: 20px;
+      color: #00bfff;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="detail">Memuat data anime...</div>
+
+  <script>
+    async function loadAnimeDetail() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const animeId = urlParams.get('id');
+
+      if (!animeId) {
+        document.getElementById('detail').innerText = "Anime tidak ditemukan.";
+        return;
+      }
+
+      try {
+        const res = await fetch(`https://api.jikan.moe/v4/anime/${animeId}`);
+        const data = await res.json();
+        const anime = data.data;
+
+        const genres = anime.genres.map(g => g.name).join(', ');
+
+        const container = document.getElementById('detail');
+        container.innerHTML = `
+          <h1 class="title">${anime.title_synonyms?.[0] || anime.title}</h1>
+          <img src="${anime.images.jpg.large_image_url}" alt="${anime.title}" class="image">
+          <p class="info"><strong>Skor:</strong> ${anime.score ?? 'Tidak tersedia'}</p>
+          <p class="info"><strong>Status:</strong> ${anime.status === 'Finished Airing' ? 'Selesai Tayang' : anime.status}</p>
+          <p class="info"><strong>Jumlah Episode:</strong> ${anime.episodes ?? 'Tidak diketahui'}</p>
+          <p class="info"><strong>Tanggal Rilis:</strong> ${anime.aired.string}</p>
+          <p class="info"><strong>Genre:</strong> ${genres}</p>
+          <p class="info"><strong>Sinopsis:</strong> ${anime.synopsis ?? 'Sinopsis tidak tersedia.'}</p>
+          <p class="info"><a href="${anime.url}" target="_blank" style="color:#00bfff;">Lihat di MyAnimeList →</a></p>
+          <a href="index.html" class="back">← Kembali ke daftar anime</a>
+        `;
+      } catch (err) {
+        console.error(err);
+        document.getElementById('detail').innerText = "Gagal memuat data anime.";
+      }
+    }
+
+    loadAnimeDetail();
+  </script>
+</body>
+</html>
